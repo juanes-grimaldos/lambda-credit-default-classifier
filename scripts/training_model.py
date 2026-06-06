@@ -32,7 +32,6 @@ class TraininModel():
         # ==============================================================================
         X_cat = ['X3', 'X2', 'X4', 'X6', 'X7', 'X8', 'X9', 'X10', 'X11']
 
-        X_num = [col for col in X.columns if col not in X_cat]
         X_cat = ['X3', 'X2', 'X4', 'X6', 'X7', 'X8', 'X9', 'X10', 'X11']
         X_num = [col for col in X.columns if col not in X_cat]
 
@@ -71,7 +70,7 @@ class TraininModel():
         ])
 
         # ==============================================================================
-        # 4. GRIDSEARCH  (los parámetros ahora llevan el prefijo 'model__')
+        # 4. GRIDSEARCH  
         # ==============================================================================
         param_grid = {
             'model__rf__max_depth':        [6, 8, 10],
@@ -102,7 +101,7 @@ class TraininModel():
         print(f"Mejor F1 en K-Folds: {grid_search.best_score_:.4f}")
 
         # ==============================================================================
-        # 5. UMBRAL ÓPTIMO  (igual que antes)
+        # 5. UMBRAL ÓPTIMO 
         # ==============================================================================
         probabilidades_train = mejor_pipeline.predict_proba(X_train)[:, 1]
         precision, recall, thresholds = precision_recall_curve(y_train, probabilidades_train)
@@ -128,7 +127,7 @@ class TraininModel():
         print(f"F1 Score : {f1_score(y_test, y_pred_final):.4f}")
 
         # ==============================================================================
-        # 7. GUARDAR  (pipeline completo + umbral)
+        # 7. GUARDAR 
         # ==============================================================================
         joblib.dump(mejor_pipeline, "src/pipeline_produccion.pkl")
         joblib.dump(umbral_optimo,  "src/umbral_optimo.pkl")
