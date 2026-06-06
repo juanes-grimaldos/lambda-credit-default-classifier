@@ -190,6 +190,71 @@ Configure an **HTTP API** or **REST API** with a `POST /predict` route proxied t
 
 ---
 
+## Model Design & Performance
+
+### Design
+
+The model follows a three-stage design: preprocessing, ensemble construction, and threshold calibration.
+
+**Stage 1 — Preprocessing (`ColumnTransformer`)**
+
+Raw features are split into two groups processed in parallel:
+
+- Numerical (`X1`, `X5`, `X12`–`X23`): `StandardScaler` — zero mean, unit variance.
+- Categorical (`X2`, `X3`, `X4`, `X6`–`X11`): `OneHotEncoder` with `drop='first'` to avoid multicollinearity.
+
+The entire transformer is embedded inside a `Pipeline` so preprocessing and inference are always applied as a single atomic step — eliminating any risk of train/serve skew.
+
+**Stage 2 — Soft Voting Ensemble**
+
+Three base estimators with complementary inductive biases are combined via soft (probability-averaging) voting:
+
+| Estimator | Rationale |
+|---|---|
+| `LogisticRegression` | Linear baseline; fast, interpretable, regularized |
+| `RandomForestClassifier` | High-variance, non-linear; captures feature interactions |
+| `HistGradientBoostingClassifier` | Gradient boosting; strong on tabular data with mixed feature types |
+
+All estimators use `class_weight='balanced'` to compensate for the ~22/78 default/non-default class imbalance in the UCI dataset.
+
+**Stage 3 — Threshold Calibration**
+
+Rather than using the default 0.5 cutoff, the optimal threshold is derived from the Precision-Recall curve on the training set by maximizing F1 score:
+
+```python
+precision, recall, thresholds = precision_recall_curve(y_train, probs)
+f1_scores = 2 * (precision * recall) / (precision + recall + 1e-10)
+umbral_optimo = thresholds[np.argmax(f1_scores)]
+```
+
+This threshold is serialized to `umbral_optimo.pkl` and applied at inference time, keeping the decision boundary decoupled from the model artifact.
+
+**Hyperparameter Tuning**
+
+`GridSearchCV` with 5-fold `StratifiedKFold` searches over Random Forest (`max_depth`, `min_samples_leaf`) and HistGradientBoosting (`max_depth`, `l2_regularization`) parameters, scoring on F1.
+
+---
+
+### Performance
+
+Evaluated on an 80/20 stratified train-test split (24,000 / 6,000 samples).
+
+| Metric | Train | Test |
+|---|---|---|
+| **Accuracy** | 0.7917 | 0.7911 |
+| **Error Rate** | 0.2083 | 0.2089 |
+| **Precision** | 0.5254 | 0.5245 |
+| **Recall** | 0.6006 | 0.5960 |
+| **F1 Score** | 0.5605 | 0.5580 |
+
+**Key observations:**
+
+- The near-identical train/test scores (e.g., F1 Δ = 0.0025) confirm the model generalizes well with no meaningful overfitting.
+- Recall of ~0.60 means the model correctly identifies 60% of actual defaulters — prioritized over precision given the asymmetric cost of missed defaults in credit risk.
+- The ~0.21 error rate reflects the difficulty of the task: the UCI dataset has significant noise in repayment status features, and the class prior is imbalanced (~22% positives).
+
+---
+
 ## Dependencies
 
 | Package | Version | Purpose |
