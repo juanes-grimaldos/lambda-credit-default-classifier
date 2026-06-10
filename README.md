@@ -1,6 +1,6 @@
 # Credit Default Classifier — AWS Lambda Inference Service
 
-A serverless ML inference service that predicts credit card payment default probability using a LightGBM model deployed as an AWS Lambda container image. Built on the [UCI Default of Credit Card Clients dataset (ID 350)](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients). Feel free to leave any feedback here: [Feedback Form](https://forms.gle/6U2eqH8HAoKQw8957)
+A serverless ML inference service that predicts credit card payment default probability using a LightGBM model deployed as an AWS Lambda container image. Built on the [UCI Default of Credit Card Clients dataset (ID 350)](https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients). Feel free to leave any feedback here: [Feedback Form](https://forms.gle/6U2eqH8HAoKQw8957). Be welcome to interact with a demo app here href[demo-link](https://credit-prediction-grimaldos.streamlit.app/)
 
 ---
 
