@@ -16,7 +16,65 @@ This project trains a tuned LightGBM classifier with a full scikit-learn preproc
 ---
 
 ## Business Problem
-In Taiwan 2006 was marked as a period of financial crisis. During period like this, financial institutions seek to have better decision making when deciding to whom borrow money. This project helps banks managers to build lending policies within the bank within a struggle financial situation.
+
+Credit card issuers face a fundamental risk management challenge: identifying customers who are likely to default on their next payment before financial losses occur. Extending credit to high-risk customers can lead to charge-offs, collection costs, and increased portfolio risk, while overly restrictive credit decisions can reduce revenue and negatively impact customer experience.
+
+This project predicts the probability that a credit card holder will default on their next monthly payment using historical repayment behavior, billing amounts, payment history, and customer attributes from the UCI Default of Credit Card Clients dataset.
+
+### Who Uses This?
+
+- Credit risk analysts
+- Consumer lending teams
+- Credit card portfolio managers
+- Automated credit decision systems
+
+### What Decision Does It Support?
+
+The estimated probability of default can support decisions such as:
+
+- Approving or rejecting new credit applications
+- Increasing or decreasing existing credit limits
+- Prioritizing accounts for risk monitoring
+- Identifying customers who may require proactive intervention
+- Supporting collections and portfolio management strategies
+
+Rather than producing only a binary classification, the model estimates a probability of default, allowing business stakeholders to define decision thresholds according to their risk tolerance and operational objectives.
+
+### Cost of Prediction Errors
+
+#### False Negative (Actual Defaulter Predicted as Low Risk)
+
+A customer who is likely to default is incorrectly classified as low risk. This may result in:
+
+- Financial losses from unpaid balances
+- Increased collection and recovery costs
+- Greater exposure to portfolio credit risk
+
+#### False Positive (Reliable Customer Predicted as High Risk)
+
+A customer who would have repaid successfully is incorrectly classified as high risk. This may result in:
+
+- Lost lending opportunities
+- Reduced customer satisfaction
+- Potential customer churn
+
+Because the cost of missing a future defaulter is generally higher than incorrectly flagging a reliable customer, the project prioritizes identifying potential defaulters while maintaining a balance between precision and recall.
+
+### Confusion Matrix (Holdout Test Set)
+
+|                | Predicted No Default | Predicted Default |
+|----------------|---------------------|-------------------|
+| Actual No Default | 4023 | 650 |
+| Actual Default | 579 | 748 |
+
+This corresponds to:
+
+- Precision: 0.466
+- Recall: 0.625
+- F1 Score: 0.758
+- ROC AUC: 0.778
+
+The deployed model uses an optimized classification threshold derived from the Precision-Recall curve instead of the default 0.5 cutoff, aligning model behavior with the business objective of reducing missed defaulters.
 
 ## Architecture
 
