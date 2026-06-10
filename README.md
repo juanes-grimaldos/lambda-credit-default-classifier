@@ -15,6 +15,9 @@ This project trains a tuned LightGBM classifier with a full scikit-learn preproc
 
 ---
 
+## Business Problem
+In Taiwan 2006 was marked as a period of financial crisis. During period like this, financial institutions seek to have better decision making when deciding to whom borrow money. This project helps banks managers to build lending policies within the bank within a struggle financial situation.
+
 ## Architecture
 
 ```
@@ -180,13 +183,14 @@ Next, you need to tag your local Docker image so AWS knows exactly where to put 
 **Important:** The final part of the URL must exactly match the name of the repository you created in AWS ECR.
 
 important clarification: 
-<local-docker-image-name>: The name you gave your image when you ran docker build (e.g., credit-lambda).
 
-<account_id>: Your 12-digit AWS Account ID.
+* **local-docker-image-name**: The name you gave your image when you ran docker build (e.g., credit-lambda).
 
-<region>: Your AWS region (e.g., us-east-2).
+* **account_id**: Your 12-digit AWS Account ID.
 
-<your-ecr-repo-name>: The exact name of your ECR repository (e.g., lambda-images).
+* **region**: Your AWS region (e.g., us-east-2).
+
+**your-ecr-repo-name**: The exact name of your ECR repository (e.g., lambda-images).
 ```bash
 # Authenticate with ECR
 aws ecr get-login-password --region <region> | \
@@ -225,11 +229,11 @@ aws lambda create-function \
   --role arn:aws:iam::<account_id>:role/<lambda-execution-role>
 ```
 
-<your-lambda-function-name>: What you want to call your function in AWS (e.g., predict-function).
+* **your-lambda-function-name**: What you want to call your function in AWS (e.g., predict-function).
 
-<your-ecr-repo-name>: The ECR repository you pushed to in the previous step (e.g., lambda-images).
+* **your-ecr-repo-name**: The ECR repository you pushed to in the previous step (e.g., lambda-images).
 
-<lambda-execution-role>: The name of the IAM role that gives your Lambda permission to run.
+* **lambda-execution-role**: The name of the IAM role that gives your Lambda permission to run.
 
 If you want to update the function because you discovered a new and better model: 
 
