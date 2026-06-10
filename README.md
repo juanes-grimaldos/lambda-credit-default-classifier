@@ -526,20 +526,6 @@ The training script compares the newly trained model against the artifact alread
 
 ---
 
-### Performance
-
-Evaluated on an 80/20 stratified train-test split (24,000 / 6,000 samples) with the Optuna-tuned LightGBM and the derived repayment features.
-
-| Metric | Test |
-|---|---|
-| **ROC AUC** | tracked via MLflow |
-| **Accuracy** | tracked via MLflow |
-| **Precision** | tracked via MLflow |
-| **Recall** | tracked via MLflow |
-| **F1 Score** | tracked via MLflow |
-
-Run `mlflow ui` after training to inspect the latest metrics for the registered production run.
-
 **Key observations:**
 
 - LightGBM outperformed the previous soft-voting ensemble (LR + RF + HGB) across all feature set configurations tested in the notebook, with better ROC AUC and comparable or better F1.
