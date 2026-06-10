@@ -60,19 +60,39 @@ A customer who would have repaid successfully is incorrectly classified as high 
 
 Because the cost of missing a future defaulter is generally higher than incorrectly flagging a reliable customer, the project prioritizes identifying potential defaulters while maintaining a balance between precision and recall.
 
-### Confusion Matrix (Holdout Test Set)
+### Production Model Performance
+
+The deployed LightGBM model was evaluated on a holdout test set containing 6,000 customers using an optimized classification threshold derived from the Precision-Recall curve.
+
+| Metric | Value |
+|----------|----------|
+| Accuracy | 0.795 |
+| Precision | 0.535 |
+| Recall | 0.564 |
+| F1 Score | 0.549 |
+| ROC AUC | 0.809 |
+| Specificity (TNR) | 0.861 |
+| False Positive Rate | 0.139 |
+| False Negative Rate | 0.436 |
+
+### Confusion Matrix
 
 |                | Predicted No Default | Predicted Default |
 |----------------|---------------------|-------------------|
 | Actual No Default | 4023 | 650 |
 | Actual Default | 579 | 748 |
 
-This corresponds to:
+### Interpretation
 
-- Precision: 0.466
-- Recall: 0.625
-- F1 Score: 0.758
-- ROC AUC: 0.778
+The model correctly classified **4,771 out of 6,000 customers**, resulting in an overall **accuracy of 79.5%**. It correctly identified **748 of 1,327 future defaulters (56.4%)** while correctly recognizing **4,023 of 4,673 non-defaulters (86.1%)**.
+
+The **579 false negatives** represent customers who eventually defaulted but were predicted as low risk. These errors are typically the most expensive because the institution may continue extending credit to customers who are likely to miss future payments, leading to financial losses and increased collection costs. The model's **false negative rate of 43.6%** indicates that approximately four out of every ten defaulters are missed.
+
+The **650 false positives** represent customers who would have repaid successfully but were flagged as high risk. These customers may face reduced credit opportunities despite being reliable borrowers. The model's **false positive rate of 13.9%** indicates that only a relatively small portion of non-defaulters are incorrectly flagged.
+
+The **precision of 53.5%** means that when the model predicts a customer will default, it is correct slightly more than half of the time. The **recall of 56.4%** means the model successfully identifies more than half of all future defaulters. Together, these metrics produce an **F1 score of 0.549**, reflecting a balanced trade-off between detecting risky customers and limiting false alarms.
+
+Finally, the **ROC AUC of 0.809** demonstrates strong ranking ability, indicating that the model can effectively separate higher-risk customers from lower-risk customers across a range of decision thresholds. This makes the predicted probabilities suitable for risk-based decision making, where business teams can adjust approval or intervention thresholds according to their risk appetite.
 
 The deployed model uses an optimized classification threshold derived from the Precision-Recall curve instead of the default 0.5 cutoff, aligning model behavior with the business objective of reducing missed defaulters.
 
