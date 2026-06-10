@@ -2,8 +2,6 @@ from scripts.simulate_values import values_simulation
 import requests
 import json
 import os
-import sys
-from pathlib import Path
 from src.predict import lambda_handler
 
 
