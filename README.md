@@ -129,6 +129,63 @@ The Lambda function is packaged as a **Docker container image** using the offici
 
 ---
 
+
+---
+## Feature Importance Analysis (Mutual Information)
+
+To quantify the predictive value of each feature before model training, Mutual Information (MI) scores were computed against the target variable. Unlike linear correlation, Mutual Information captures both linear and non-linear relationships, making it particularly useful for identifying features that contain information about future default behavior.
+
+### Original Features
+
+![Mutual Information Scores - Original Features](plots/mutual_information_scores.png)
+
+**Key Findings**
+
+- Repayment status variables (`X6`–`X11`) dominate the ranking, confirming that historical delinquency behavior is the strongest predictor of future default.
+- The most recent repayment status (`X6`) provides the highest information gain, suggesting that recent payment behavior carries the strongest signal.
+- Billing amount features (`X18`–`X23`) provide moderate predictive value.
+- Demographic variables such as gender (`X2`), education (`X3`), marital status (`X4`), and age (`X5`) contribute relatively little information compared to behavioral credit features.
+- These findings are consistent with the target EDA, where default rates increased sharply as repayment delays became more severe.
+
+### Feature Set After Engineering
+
+![Mutual Information Scores - Engineered Features](plots/mutual_information_scores_feat_eng.png)
+
+**Key Findings**
+
+- Engineered repayment features emerged among the most informative variables in the dataset.
+- `max_delay` became the second most informative feature overall, indicating that a customer's worst historical delinquency is highly predictive of future default.
+- `ever_late` also ranked among the strongest predictors, demonstrating the importance of capturing whether a customer has experienced any repayment delinquency.
+- `delay_trend` contributed meaningful predictive information by summarizing the direction of repayment behavior over time.
+- The results validate the feature-engineering strategy, as the engineered variables successfully condensed information spread across multiple repayment-status columns into highly predictive summary features.
+
+### Conclusion
+
+The Mutual Information analysis confirms that repayment behavior is the primary driver of default risk in this dataset. Furthermore, the engineered repayment features capture substantial additional predictive signal, justifying their inclusion in the final modeling pipeline.
+
+
+---
+
+## Model Interpretation
+
+![LightGBM Feature Importance](plots/lightgbm_feature_importance.png)
+
+Feature importance analysis from the final LightGBM model reveals that recent billing amounts, payment amounts, and repayment history variables are the primary drivers of prediction performance.
+
+The most influential features include:
+
+- Current bill amount (`X12`)
+- Credit limit (`X1`)
+- Recent payment amounts (`X19`, `X20`, `X18`)
+- Repayment status variables (`X6`, `X7`, `X8`, `X11`)
+- Engineered delinquency features (`max_delay`, `delay_trend`)
+
+Interestingly, while Mutual Information analysis identified repayment-status variables as the strongest individual predictors, the trained LightGBM model also relied heavily on billing and payment amount features. This suggests that default risk is influenced not only by delinquency history but also by spending behavior, repayment patterns, and credit utilization.
+
+The presence of engineered features among the most important predictors validates the feature-engineering strategy and demonstrates that summary measures of repayment behavior provide additional predictive value beyond the raw repayment-status variables.
+
+---
+
 ## Project Structure
 
 ```
@@ -204,7 +261,7 @@ pipenv install
 Note: the pipfile and pipfile.lock have only the packages requered for the lambda function to run, you will need to add other packages to run and to test.
 To test the function locally run the following command: 
 ```bash
-pipenv install requests
+pipenv install requests   
 pipenv run python -c "from scripts.post import local_running_lambda; local_running_lambda()"
 pipenv uninstall requests
 ```
