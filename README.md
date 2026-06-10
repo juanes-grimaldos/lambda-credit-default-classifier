@@ -124,8 +124,10 @@ To test the function locally run the following command:
 ```bash
 pipenv install requests
 pipenv run python -c "from scripts.post import local_running_lambda; local_running_lambda()"
+pipenv uninstall requests
 ```
 This generates a synthetic batch matching the UCI feature distribution and posts it to the local Lambda RIE endpoint.
+It is encouraged to uninstall requests since it is not supposted to be in the image.
 
 ## Local Development
 
@@ -158,6 +160,7 @@ docker run --rm -p 9000:8080 credit-default-classifier
 ### 5. Test with a simulated payload
 
 ```bash
+pipenv install requests
 pipenv run python -c "from scripts.post import running_lambda; running_lambda(True)"
 ```
 
@@ -235,6 +238,15 @@ aws lambda update-function-code \
     --image-uri <account_id>.dkr.ecr.<region>.amazonaws.com/<your-ecr-repo-name>:latest
 ```
 
+
+
+###  Test with a simulated payload
+remember to change the Env variable in .env POST_URL for your AWS url, and to install requests if not install previously
+
+```bash
+pipenv install requests
+pipenv run python -c "from scripts.post import running_lambda; running_lambda()"
+```
 
 ## run training and mlflow for tracking improvements in the model selection
 
