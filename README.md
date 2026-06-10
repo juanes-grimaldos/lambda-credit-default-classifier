@@ -305,6 +305,8 @@ pipenv run python -c "from scripts.post import running_lambda; running_lambda(Tr
 
 This generates a synthetic batch matching the UCI feature distribution and posts it to the local Lambda RIE endpoint.
 
+If you run the streamlit, make sure to change .env with the following url for POST_URL
+http://localhost:9000/2015-03-31/functions/function/invocations
 
 ---
 

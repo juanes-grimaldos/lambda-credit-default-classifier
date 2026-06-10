@@ -66,3 +66,32 @@ def running_lambda(local_docker:bool=False):
     if "body" in lambda_response_dict:
         actual_predictions = json.loads(lambda_response_dict["body"])
         print("Actual ML Predictions:", actual_predictions)
+
+def predict_payload(payload, local_mode=False):
+    lambda_payload = {
+        "body": json.dumps(payload)
+    }
+
+    if local_mode:
+        response = lambda_handler(lambda_payload, None)
+
+        if "body" in response:
+            return json.loads(response["body"])
+
+        return response
+
+    url = os.getenv(
+        "POST_URL",
+        "http://localhost:9000/2015-03-31/functions/function/invocations"
+    )
+
+    response = requests.post(url, json=lambda_payload)
+
+    response.raise_for_status()
+
+    lambda_response = response.json()
+
+    if "body" in lambda_response:
+        return json.loads(lambda_response["body"])
+
+    return lambda_response
