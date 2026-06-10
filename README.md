@@ -304,29 +304,28 @@ These features are motivated by Spearman correlation and mutual information anal
 
 Raw features are split into four groups processed in parallel via `ColumnTransformer`:
 
-| Group | Columns | Transformer |
-|---|---|---|
-| Numerical | `X1`, `X5`, `X12`–`X23` | `RobustScaler` — robust to the heavy outliers in bill/payment amounts |
-| Categorical | `X2`, `X3`, `X4` | `OneHotEncoder` with `drop='first'` to avoid multicollinearity |
-| Repayment status | `X6`–`X11` | `OrdinalEncoder` with explicit category ordering `[−2, −1, 0, 1, …, 10]` — preserves the severity scale |
-| Derived features | `ever_late`, `max_delay`, `delay_trend`, `good_payment_ratio` | `RobustScaler` — `max_delay` inherits the outlier profile of X6–X11 |
+### Performance
 
-The entire transformer is embedded in a `Pipeline` so preprocessing and inference are always applied as a single atomic step, eliminating any risk of train/serve skew.
+Evaluated via 5-fold `StratifiedKFold` cross-validation on the full feature set (23 original + 4 derived repayment features).
 
-### Model Selection
+| Model | ROC AUC | F1 | Precision | Recall | Accuracy | Overfit Gap | Train Time (s) | PKL (KB) |
+|---|---|---|---|---|---|---|---|---|
+| Logistic Regression | 0.769 | 0.531 | 0.467 | 0.615 | 0.759 | 0.002 | 8.6 | 8 |
+| HistGradientBoosting | 0.783 | 0.534 | 0.461 | 0.634 | 0.754 | 0.041 | 13.5 | 244 |
+| **VotingClassifier** | **0.784** | **0.538** | 0.478 | 0.617 | 0.765 | 0.045 | 27.2 | 553 |
+| **LightGBM** | 0.781 | **0.536** | 0.468 | 0.628 | 0.759 | 0.095 | **2.7** | 350 |
+| Random Forest | 0.764 | 0.523 | 0.558 | 0.494 | 0.801 | 0.468 | 6.7 | 69,956 |
+| XGBoost | 0.762 | 0.513 | 0.459 | 0.584 | 0.755 | 0.247 | 3.0 | 395 |
 
-Six candidate models were evaluated via 5-fold `StratifiedKFold` cross-validation on the full feature set (original + derived), scored on ROC AUC, F1, Precision, Recall, Accuracy, overfit gap, training time, and serialized size:
+**Key observations:**
 
-| Model | ROC AUC | F1 | Recall | Overfit Gap |
-|---|---|---|---|---|
-| Logistic Regression | — | — | — | low |
-| Random Forest | — | — | — | moderate |
-| HistGradientBoosting | — | — | — | low |
-| XGBoost | — | — | — | low |
-| **LightGBM** | **best** | **best** | competitive | low |
-| VotingClassifier (LR + HGB + LGBM) | competitive | competitive | competitive | low |
+- LightGBM was selected as the production model: it matches the VotingClassifier on F1 (0.536 vs 0.538) and falls within 0.003 ROC AUC, while training **10× faster** and serializing to a **36% smaller artifact** (350 KB vs 553 KB) — a meaningful advantage in a Lambda cold-start context.
+- Random Forest achieves the highest raw accuracy (0.801) but its 0.468 overfit gap signals memorization rather than generalization, and its 69 MB artifact makes it impractical for container deployment.
+- Logistic Regression is the most stable model (overfit gap of 0.002) and serves as a strong linear baseline, but its ROC AUC trails the gradient boosting models by ~1.3 points.
+- Recall is deliberately prioritized over precision across all models via `class_weight='balanced'` — missing an actual defaulter carries a higher cost than a false alarm in credit risk.
+- The four derived features (`ever_late`, `max_delay`, `delay_trend`, `good_payment_ratio`) are included in all evaluations above and ranked among the top predictors by mutual information analysis.
 
-LightGBM consistently led on ROC AUC and F1 across all three feature set configurations tested in the notebook (full features, MI > 0.01, MI > 0.005). The soft-voting ensemble was competitive but added serialization overhead without a meaningful performance gain, so **LightGBM was selected as the production model**.
+The entire transformer is embedded in a `Pipeline` so preprocessing and inference are always applied as a single atomic step, eliminating any risk of train/serve skew. |
 
 ### Hyperparameter Tuning
 
@@ -338,17 +337,6 @@ LightGBM consistently led on ROC AUC and F1 across all three feature set configu
 | `n_estimators` | integer [50, 200] |
 | `num_leaves` | integer [15, 63] |
 
-The best trial configuration found:
-
-```python
-LGBMClassifier(
-    learning_rate=0.07088661041095881,
-    n_estimators=68,
-    num_leaves=30,
-    class_weight='balanced',
-    random_state=42
-)
-```
 
 ### Threshold Calibration
 
