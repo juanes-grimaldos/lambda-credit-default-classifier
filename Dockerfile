@@ -1,5 +1,8 @@
 FROM public.ecr.aws/lambda/python:3.13
 
+# Amazon Linux 2023 uses dnf instead of yum!
+RUN dnf install -y libgomp
+
 RUN pip install pipenv
 
 WORKDIR ${LAMBDA_TASK_ROOT}

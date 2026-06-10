@@ -3,11 +3,10 @@ import joblib
 import pandas as pd
 from pathlib import Path
 
-# Global scope: Loaded once during Lambda initialization (Warm Starts)
 BASE_DIR = Path(__file__).parent
 
-pipeline = joblib.load(BASE_DIR / "pipeline_produccion.pkl")
-umbral_optimo = joblib.load( BASE_DIR / "umbral_optimo.pkl")
+pipeline = joblib.load(BASE_DIR / "product_pipeline.pkl")
+threshold = joblib.load( BASE_DIR / "opt_threshold.pkl")
 
 def lambda_handler(event, context):
     try:
@@ -18,13 +17,13 @@ def lambda_handler(event, context):
 
         # 2. Process data and predict
         df = pd.DataFrame(body)
-        probabilidades = pipeline.predict_proba(df)[:, 1]
-        predicciones = (probabilidades >= umbral_optimo).astype(int)
+        probs = pipeline.predict_proba(df)[:, 1]
+        preds = (probs >= threshold).astype(int)
 
         results = {
-            'probs': probabilidades.tolist(),
-            'predict': predicciones.tolist(),
-            'opt_prob': float(umbral_optimo) # Ensure it's JSON serializable
+            'probs': probs.tolist(),
+            'predict': preds.tolist(),
+            'opt_prob': float(threshold) # Ensure it's JSON serializable
         }
 
 

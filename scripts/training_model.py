@@ -5,13 +5,11 @@ import warnings
 import numpy as np
 import pandas as pd
 import optuna
-import mlflow
-import mlflow.sklearn
 from ucimlrepo import fetch_ucirepo
 
 from lightgbm import LGBMClassifier
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder, OrdinalEncoder
+from sklearn.preprocessing import RobustScaler, OneHotEncoder, OrdinalEncoder
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
@@ -94,10 +92,10 @@ class ModelTrainer:
 
         self.preprocessor = ColumnTransformer(
             transformers=[
-                ('num', StandardScaler(), X_num),
+                ('num', RobustScaler(), X_num),
                 ('cat', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), X_cat_clean),
                 ('rep', OrdinalEncoder(categories=repayment_categories, handle_unknown='use_encoded_value', unknown_value=-1), X_repayment),
-                ('der', StandardScaler(), X_derived),
+                ('der', RobustScaler(), X_derived),
             ]
         )
     
@@ -270,14 +268,14 @@ class ModelTrainer:
                     mlflow.log_params(study.best_params)
 
                     # 4. Log the real out-of-sample metrics achieved on your test set
-                    mlflow.log_metric("accuracy", accuracy_score(self.y_test, y_pred_final))
-                    mlflow.log_metric("precision", precision_score(self.y_test, y_pred_final))
-                    mlflow.log_metric("recall", recall_score(self.y_test, y_pred_final))
-                    mlflow.log_metric("f1_score", f1_score(self.y_test, y_pred_final))
-                    mlflow.log_metric("test_roc_auc", new_model_auc)
+                    mlflow.log_metric("accuracy", accuracy_score(self.y_test, y_pred_final)) # type: ignore
+                    mlflow.log_metric("precision", precision_score(self.y_test, y_pred_final)) # type: ignore
+                    mlflow.log_metric("recall", recall_score(self.y_test, y_pred_final)) # type: ignore
+                    mlflow.log_metric("f1_score", f1_score(self.y_test, y_pred_final)) # type: ignore
+                    mlflow.log_metric("test_roc_auc", new_model_auc) # type: ignore
 
                     # 5. Save the pipeline binary directly to the MLflow local run registry
-                    mlflow.sklearn.log_model(best, artifact_path="production_pipeline")
+                    mlflow.sklearn.log_model(best, artifact_path="production_pipeline") # type: ignore
                     
                 logger.info("Successfully registered the new champion model to MLflow server.")
                 
@@ -290,8 +288,3 @@ class ModelTrainer:
         else:
             logger.info("Deployment skipped. Retained previous production artifacts.")
 
-
-if __name__ == "__main__":
-    trainer = ModelTrainer()
-    trainer.get_data()
-    trainer.run_tuning_and_evaluation(n_trials=30)

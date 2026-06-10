@@ -73,26 +73,43 @@ class values_simulation():
     # ── Generate ───────────────────────────────────────────────────────────────
 
     def generate(self) -> pd.DataFrame:
-        data = {}
-        for col, spec in self.cat_specs.items():
-            counts = np.array(spec["probs"], dtype=float)
-            probs  = counts / counts.sum()
-            data[col] = self.sample_categorical(spec["values"], probs, self.N)
+            data = {}
+            for col, spec in self.cat_specs.items():
+                counts = np.array(spec["probs"], dtype=float)
+                probs  = counts / counts.sum()
+                data[col] = self.sample_categorical(spec["values"], probs, self.N)
+            
+            for col, spec in self.cont_specs.items():
+                data[col] = self.sample_truncated_normal(
+                    spec["mean"], spec["std"], spec["min"], spec["max"], self.N
+                )
         
-        for col, spec in self.cont_specs.items():
-            data[col] = self.sample_truncated_normal(
-                spec["mean"], spec["std"], spec["min"], spec["max"], self.N
-            )
-    
-        # ── Assemble and sort columns X1 → X23 ────────────────────────────────────
-        df = pd.DataFrame(data)
-        col_order = [f"X{i}" for i in range(1, 24)]
-        df = df[col_order]
-        
-        # Round integer-natured columns
-        int_cols = ["X1", "X5"] + [f"X{i}" for i in range(12, 24)]
-        df[int_cols] = df[int_cols].round(0).astype(int)
-        return df
+            # ── Assemble and sort columns X1 → X23 ────────────────────────────────────
+            df = pd.DataFrame(data)
+            col_order = [f"X{i}" for i in range(1, 24)]
+            df = df[col_order]
+            
+            # Round integer-natured columns
+            int_cols = ["X1", "X5"] + [f"X{i}" for i in range(12, 24)]
+            df[int_cols] = df[int_cols].round(0).astype(int)
+
+            # ── Feature Engineering ───────────────────────────────────────────────────
+            repayment_cols = ['X6', 'X7', 'X8', 'X9', 'X10', 'X11']
+
+            # Over the 6 months, the client has ever been late
+            df['ever_late'] = (df[repayment_cols] >= 1).any(axis=1).astype(int)
+
+            # The max delay observed
+            df['max_delay'] = df[repayment_cols].clip(lower=0).max(axis=1)
+
+            # Is this improving or not?
+            df['delay_trend'] = df['X11'] - df['X6']  
+
+            # Good performance ratio over the past 6 months
+            good = (df[repayment_cols] <= -1)
+            df['good_payment_ratio'] = good.sum(axis=1) / 6
+            
+            return df
 
     def generate_json_payload(self, as_string: bool = False):
             """

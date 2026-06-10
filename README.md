@@ -23,8 +23,8 @@ POST /predict
       ▼
  API Gateway  ──►  AWS Lambda (Container Image)
                         │
-                        ├── pipeline_produccion.pkl   (preprocessor + ensemble)
-                        ├── umbral_optimo.pkl          (optimal threshold)
+                        ├── product_pipeline.pkl   (preprocessor + ensemble)
+                        ├── opt_threshold.pkl          (optimal threshold)
                         └── predict.py                 (lambda_handler)
 ```
 
@@ -104,6 +104,28 @@ Accepts a batch of records and returns default probabilities and binary predicti
 | `opt_prob` | `float` | Threshold used for classification |
 
 ---
+## Local testing
+
+
+### Prerequisites
+
+- Python 3.13+ with `pipenv`
+
+
+### 1. Clone and install dependencies
+
+```bash
+git clone https://github.com/juanes-grimaldos/lambda-credit-default-classifier.git
+cd lambda-credit-default-classifier
+pipenv install
+```
+Note: the pipfile and pipfile.lock have only the packages requered for the lambda function to run, you will need to add other packages to run and to test.
+To test the function locally run the following command: 
+```bash
+pipenv install requests
+pipenv run python -c "from scripts.post import local_running_lambda; local_running_lambda()"
+```
+This generates a synthetic batch matching the UCI feature distribution and posts it to the local Lambda RIE endpoint.
 
 ## Local Development
 
@@ -120,18 +142,11 @@ cd lambda-credit-default-classifier
 pipenv install
 ```
 
-### 2. (Optional) Retrain the model
-
-```bash
-pipenv run python scripts/training_model.py
-```
-
-This fetches the UCI dataset, trains the ensemble with GridSearchCV, computes the optimal threshold, and saves artifacts to `src/`.
 
 ### 3. Build the container image
 
 ```bash
-docker build -t credit-default-classifier .
+docker build --provenance=false -t credit-default-classifier:latest .
 ```
 
 ### 4. Run locally with the Lambda Runtime Interface Emulator
@@ -143,46 +158,113 @@ docker run --rm -p 9000:8080 credit-default-classifier
 ### 5. Test with a simulated payload
 
 ```bash
-pipenv run python scripts/post.py
+pipenv run python -c "from scripts.post import running_lambda; running_lambda(True)"
 ```
 
-This generates a synthetic batch (N=3000) matching the UCI feature distribution and posts it to the local Lambda RIE endpoint.
+This generates a synthetic batch matching the UCI feature distribution and posts it to the local Lambda RIE endpoint.
 
-### 6. Run the Flask development server (alternative)
-
-```bash
-pipenv run python scripts/predict_service.py
-# Then, in another terminal:
-POST_URL=http://localhost:9696/predict pipenv run python scripts/post.py
-```
 
 ---
 
-## Deployment
+## Cloud Deployment
 
 ### Build and push to Amazon ECR
 
+
+Next, you need to tag your local Docker image so AWS knows exactly where to put it. 
+
+**Important:** The final part of the URL must exactly match the name of the repository you created in AWS ECR.
+
+important clarification: 
+<local-docker-image-name>: The name you gave your image when you ran docker build (e.g., credit-lambda).
+
+<account_id>: Your 12-digit AWS Account ID.
+
+<region>: Your AWS region (e.g., us-east-2).
+
+<your-ecr-repo-name>: The exact name of your ECR repository (e.g., lambda-images).
 ```bash
 # Authenticate with ECR
 aws ecr get-login-password --region <region> | \
   docker login --username AWS --password-stdin <account_id>.dkr.ecr.<region>.amazonaws.com
 
 # Tag and push
-docker tag credit-default-classifier:latest \
-  <account_id>.dkr.ecr.<region>.amazonaws.com/credit-default-classifier:latest
+docker tag <local-docker-image-name>:latest <account_id>.dkr.ecr.<region>[.amazonaws.com/](https://.amazonaws.com/)<your-ecr-repo-name>:latest
 
-docker push <account_id>.dkr.ecr.<region>.amazonaws.com/credit-default-classifier:latest
+docker push <account_id>.dkr.ecr.<region>[.amazonaws.com/](https://.amazonaws.com/)<your-ecr-repo-name>:latest
 ```
 
 ### Create the Lambda function
+* the user must have the explicit permission to create in lambda:
+
+```bash
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+
+```
 
 ```bash
 aws lambda create-function \
-  --function-name credit-default-classifier \
+  --function-name <your-lambda-function-name> \
   --package-type Image \
-  --code ImageUri=<account_id>.dkr.ecr.<region>.amazonaws.com/credit-default-classifier:latest \
+  --code ImageUri=<account_id>.dkr.ecr.<region>.amazonaws.com/<your-ecr-repo-name>:latest \
   --role arn:aws:iam::<account_id>:role/<lambda-execution-role>
 ```
+
+<your-lambda-function-name>: What you want to call your function in AWS (e.g., predict-function).
+
+<your-ecr-repo-name>: The ECR repository you pushed to in the previous step (e.g., lambda-images).
+
+<lambda-execution-role>: The name of the IAM role that gives your Lambda permission to run.
+
+If you want to update the function because you discovered a new and better model: 
+
+```bash
+aws lambda update-function-code \
+    --function-name <your-lambda-function-name> \
+    --image-uri <account_id>.dkr.ecr.<region>.amazonaws.com/<your-ecr-repo-name>:latest
+```
+
+
+## run training and mlflow for tracking improvements in the model selection
+
+First we need to install other packages that are not supposed to be in the docker image:
+```batch
+pipenv install optuna ucimlrepo "mlflow>3.0.0"
+```
+
+Then we cna run the script:
+```batch
+pipenv run python -c "from scripts.training_model import ModelTrainer; trainer = ModelTrainer(); trainer.get_data(); trainer.run_tuning_and_evaluation(n_trials=30)"
+```
+
+After the random optimization, a new better model may or may not be better than the model already optimized. 
+
+```batch
+mlflow ui
+```
+
+generally the mlflow panel will be on http://127.0.0.1:5000 
+There yuou can check for the models, their performance and track if you want to change or include other feature as well.
+
+## notebook analysis (EDA, model selection, feature eng)
+
+finally you can run the notebook, but first we need to add other pacakges:
+
+```batch
+pipenv install seaborn, xgboost
+```
+When you try to run the notebook, it will ask for other dependencies for the kernel.
 
 ### Expose via API Gateway
 
@@ -227,11 +309,11 @@ f1_scores = 2 * (precision * recall) / (precision + recall + 1e-10)
 umbral_optimo = thresholds[np.argmax(f1_scores)]
 ```
 
-This threshold is serialized to `umbral_optimo.pkl` and applied at inference time, keeping the decision boundary decoupled from the model artifact.
+This threshold is serialized to `opt_threshold.pkl` and applied at inference time, keeping the decision boundary decoupled from the model artifact.
 
 **Hyperparameter Tuning**
 
-`GridSearchCV` with 5-fold `StratifiedKFold` searches over Random Forest (`max_depth`, `min_samples_leaf`) and HistGradientBoosting (`max_depth`, `l2_regularization`) parameters, scoring on F1.
+`Optuna` with 5-fold `StratifiedKFold` searches over Lightgbm, scoring on F1.
 
 ---
 
@@ -252,19 +334,6 @@ Evaluated on an 80/20 stratified train-test split (24,000 / 6,000 samples).
 - The near-identical train/test scores (e.g., F1 Δ = 0.0025) confirm the model generalizes well with no meaningful overfitting.
 - Recall of ~0.60 means the model correctly identifies 60% of actual defaulters — prioritized over precision given the asymmetric cost of missed defaults in credit risk.
 - The ~0.21 error rate reflects the difficulty of the task: the UCI dataset has significant noise in repayment status features, and the class prior is imbalanced (~22% positives).
-
----
-
-## Dependencies
-
-| Package | Version | Purpose |
-|---|---|---|
-| `scikit-learn` | 1.9.0 | ML pipeline, ensemble, preprocessing |
-| `pandas` | 3.0.3 | Data manipulation |
-| `numpy` | 2.4.6 | Numerical operations |
-| `joblib` | 1.5.3 | Model serialization |
-| `scipy` | 1.17.1 | Truncated normal sampling (simulation) |
-| `flask` | 3.1.3 | Local development server |
 
 ---
 
